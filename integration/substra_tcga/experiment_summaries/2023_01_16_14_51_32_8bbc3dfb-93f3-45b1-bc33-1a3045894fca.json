@@ -1,0 +1,111 @@
+{
+    "compute_plan_key": "8bbc3dfb-93f3-45b1-bc33-1a3045894fca",
+    "strategy": "FedAvg",
+    "num_rounds": 3,
+    "algo": {
+        "type": "<class '__main__.MyAlgo'>",
+        "model": "<class 'flamby.datasets.fed_heart_disease.model.Baseline'>",
+        "criterion": "<class 'flamby.datasets.fed_heart_disease.loss.BaselineLoss'>",
+        "optimizer": {
+            "type": "<class 'torch.optim.adam.Adam'>",
+            "parameters": {
+                "lr": 0.001,
+                "betas": [
+                    0.9,
+                    0.999
+                ],
+                "eps": 1e-08,
+                "weight_decay": 0,
+                "amsgrad": false,
+                "maximize": false
+            }
+        },
+        "scheduler": null,
+        "with_batch_norm_parameters": "False"
+    },
+    "algo_keys": {
+        "7c1e97fd-a0e9-4b8f-83d1-8e870d825167": {
+            "type": "MyAlgo",
+            "method_name": "train"
+        },
+        "9e631704-37c9-4ba2-ad0f-27b30ea59b67": {
+            "type": "FedAvg",
+            "method_name": "avg_shared_states"
+        }
+    },
+    "train_data_nodes": [
+        {
+            "organization_id": "MyOrg1MSP",
+            "data_manager_key": "c8da4953-b995-430e-ba1a-e7589fb08e93",
+            "data_sample_keys": [
+                "ccb2b3da-9678-4a93-be7e-5ed504c2b7dc"
+            ]
+        },
+        {
+            "organization_id": "MyOrg2MSP",
+            "data_manager_key": "bf6a2f95-6b05-46cd-9367-7b3e0f333405",
+            "data_sample_keys": [
+                "25bf7282-d77e-48b1-9707-0b36daf22901"
+            ]
+        },
+        {
+            "organization_id": "MyOrg3MSP",
+            "data_manager_key": "233abcac-2d02-4185-ada7-184afaf484a8",
+            "data_sample_keys": [
+                "ea911e78-cbdb-44e1-9927-2c436b160954"
+            ]
+        },
+        {
+            "organization_id": "MyOrg4MSP",
+            "data_manager_key": "a7db8163-2046-4c3c-bcf5-692489e3d4c6",
+            "data_sample_keys": [
+                "2cbac931-6d0b-4e88-bde1-d57bbb948457"
+            ]
+        }
+    ],
+    "test_data_nodes": [
+        {
+            "organization_id": "MyOrg1MSP",
+            "data_manager_key": "dd76f7fd-215f-40f5-b9ff-8da0474a2c16",
+            "data_sample_keys": [
+                "92132fb0-c111-42bf-ab4d-84fcc2bdf208"
+            ],
+            "metric_keys": [
+                "dea8bfb8-e66b-48d5-b8f1-072284ea20f0"
+            ]
+        },
+        {
+            "organization_id": "MyOrg2MSP",
+            "data_manager_key": "721eb7d9-3219-46c5-b9a6-8c81e40374d9",
+            "data_sample_keys": [
+                "57332cf8-4c5d-4027-9c14-25fb32b6dc48"
+            ],
+            "metric_keys": [
+                "dea8bfb8-e66b-48d5-b8f1-072284ea20f0"
+            ]
+        },
+        {
+            "organization_id": "MyOrg3MSP",
+            "data_manager_key": "0626e8ea-50c2-4df6-ac56-8ef61ceb65fc",
+            "data_sample_keys": [
+                "2e0da9b1-1472-4aab-9590-7194e143fa2b"
+            ],
+            "metric_keys": [
+                "dea8bfb8-e66b-48d5-b8f1-072284ea20f0"
+            ]
+        },
+        {
+            "organization_id": "MyOrg4MSP",
+            "data_manager_key": "9902379b-58b8-4d68-805d-300435f224a3",
+            "data_sample_keys": [
+                "31d04cf0-d990-41e3-a95f-52bf1bb98adc"
+            ],
+            "metric_keys": [
+                "dea8bfb8-e66b-48d5-b8f1-072284ea20f0"
+            ]
+        }
+    ],
+    "aggregation_node": {
+        "organization_id": "MyOrg5MSP"
+    }
+}
