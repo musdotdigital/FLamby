@@ -1,0 +1,9 @@
+name: fed-substra
+channels:
+  - conda
+  - conda-forge
+dependencies:
+  - python=3.8
+  - pip
+  - pytest
+  - ipython

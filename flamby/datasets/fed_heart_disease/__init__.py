@@ -10,4 +10,5 @@ from flamby.datasets.fed_heart_disease.common import (
 from flamby.datasets.fed_heart_disease.dataset import FedHeartDisease, HeartDiseaseRaw
 from flamby.datasets.fed_heart_disease.loss import BaselineLoss
 from flamby.datasets.fed_heart_disease.metric import metric
+from flamby.datasets.fed_heart_disease.metric_fed import metric_fed
 from flamby.datasets.fed_heart_disease.model import Baseline

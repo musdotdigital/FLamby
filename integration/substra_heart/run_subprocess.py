@@ -1,4 +1,3 @@
-
 from substrafl.strategies import FedAvg
 import torch
 from substrafl.model_loading import load_algo
@@ -130,7 +129,7 @@ def fed_heart_disease_metric(datasamples, predictions_path):
     y_true = next(iter(dataloader))[1]
     y_pred = np.load(predictions_path)
 
-    return float(fed_heart_disease.metric(y_true, y_pred))
+    return float(fed_heart_disease.metric_fed(y_true, y_pred))
 
 
 # The Dependency object is instantiated in order to install the right libraries in
