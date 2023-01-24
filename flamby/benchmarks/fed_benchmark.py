@@ -50,6 +50,8 @@ def main(args_cli):
     set_seed(args_cli.seed)
 
     use_gpu = use_gpu_idx(args_cli.GPU, args_cli.cpu_only)
+    print(f"Args cli: {args_cli}")
+    print(f"Using GPU: {use_gpu}")
     hyperparameters_names = [
         "learning_rate",
         "server_learning_rate",
@@ -81,6 +83,7 @@ def main(args_cli):
 
     # ensure that the config provided by the user is ok
     config = check_config(args_cli.config_file_path)
+    print(f"Config: {config}")
 
     dataset_name = config["dataset"]
 
@@ -180,6 +183,8 @@ def main(args_cli):
             axis="columns",
             fill_value=None,
         )
+        print('============================================')
+        print(f"Results file found at {results_file}, appending results: {df}")
     else:
         # initialize data frame with the column_names and no data if no csv was
         # found
@@ -194,7 +199,7 @@ def main(args_cli):
         args_cli.strategy,
         compute_ensemble_perf,
     )
-
+    print(f"do_strategy: {do_strategy}")
     # We can now proceed to the trainings
     # Pooled training
     # We check if we have already the results for pooled
@@ -410,6 +415,7 @@ def main(args_cli):
                 )
 
                 # An experiment is finished if there are num_clients + 1 rows
+                print("index_of_interest", len(index_of_interest), NUM_CLIENTS + 1)
                 if len(index_of_interest) < (NUM_CLIENTS + 1):
                     # Dealing with edge case that shouldn't happen
                     # If some of the rows are there but not all of them we redo the

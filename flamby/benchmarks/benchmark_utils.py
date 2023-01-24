@@ -399,8 +399,8 @@ def train_single_centric(
     device = "cpu"
     model = copy.deepcopy(global_init)
     if use_gpu:
-        model.cuda()
-        device = "cuda"
+        device = torch.device("mps")
+        model.to(device)
 
     bloss = loss_class()
     opt = opt_class(model.parameters(), lr=learning_rate)
@@ -428,8 +428,8 @@ def train_single_centric(
         for X, y in train_dl:
             if use_gpu:
                 # use GPU if requested and available
-                X = X.cuda()
-                y = y.cuda()
+                X = X.to(device)
+                y = y.to(device)
             opt.zero_grad()
             y_pred = model(X)
             loss = bloss(y_pred, y)
