@@ -1,4 +1,5 @@
 import argparse
+import argparse
 
 import numpy as np
 import torch
@@ -30,16 +31,14 @@ def main(num_workers_torch, log=False, log_period=10, debug=False, cpu_only=Fals
     """
 
     metrics_dict = {"AUC": metric}
+    use_gpu = torch.backends.mps.is_available() and not (cpu_only)
 
-    use_gpu = torch.has_mps and not (cpu_only)
- 
     training_dl = dl(
         FedHeartDisease(train=True, pooled=True, debug=debug),
         num_workers=num_workers_torch,
         batch_size=BATCH_SIZE,
         shuffle=True,
     )
-
     test_dl = dl(
         FedHeartDisease(train=False, pooled=True, debug=debug),
         num_workers=num_workers_torch,
@@ -58,7 +57,6 @@ def main(num_workers_torch, log=False, log_period=10, debug=False, cpu_only=Fals
 
     results = []
     seeds = np.arange(42, 47).tolist()
-    
     for seed in seeds:
         # At each new seed we re-initialize the model
         # and training_dl is shuffled as well
@@ -66,12 +64,9 @@ def main(num_workers_torch, log=False, log_period=10, debug=False, cpu_only=Fals
         m = Baseline()
         # We put the model on GPU whenever it is possible
         if use_gpu:
-            mps_device = torch.device("mps")
-            m = m.to(mps_device)
-
+            m = m.cuda(device=torch.device('mps'))
         loss = BaselineLoss()
         optimizer = optim.Adam(m.parameters(), lr=LR)
-
         if log:
             # We create one summarywriter for each seed in order to overlay the plots
             writer = SummaryWriter(log_dir=f"./runs/seed{seed}")
@@ -84,9 +79,8 @@ def main(num_workers_torch, log=False, log_period=10, debug=False, cpu_only=Fals
             for s, (X, y) in enumerate(training_dl):
                 # traditional training loop with optional GPU transfer
                 if use_gpu:
-                    mps_device = torch.device("mps")
-                    X = X.to(mps_device)
-                    y = y.to(mps_device)
+                    X = X.cuda(device=torch.device('mps'))
+                    y = y.cuda(device=torch.device('mps'))
 
                 optimizer.zero_grad()
                 y_pred = m(X)
@@ -134,7 +128,7 @@ if __name__ == "__main__":
         "--num-workers-torch",
         type=int,
         help="How many workers to use for the batching.",
-        default=8,
+        default=20,
     )
     parser.add_argument(
         "--log",

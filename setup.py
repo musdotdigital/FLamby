@@ -111,6 +111,7 @@ setup(
         "tensorboard",
         "torch",
         "torchvision",
+        "torchaudio",
         "tqdm",
         "umap-learn",
         "opacus",

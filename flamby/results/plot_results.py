@@ -39,12 +39,6 @@ dataset_names = []
 results = []
 # directory names should be as below
 dirs_multiple_seeds = [
-    os.path.join(dir_path, "results_benchmark_fed_camelyon16"),
-    os.path.join(dir_path, "results_benchmark_fed_lidc_idri"),
-    os.path.join(dir_path, "results_benchmark_fed_ixi"),
-    os.path.join(dir_path, "results_benchmark_fed_tcga_brca"),
-    os.path.join(dir_path, "results_benchmark_fed_kits19"),
-    os.path.join(dir_path, "results_benchmark_fed_isic2019"),
     os.path.join(dir_path, "results_benchmark_fed_heart_disease"),
 ]
 for dir in dirs_multiple_seeds:
@@ -54,44 +48,39 @@ for dir in dirs_multiple_seeds:
     results.append(df)
     dataset_names.append("_".join(dir.split("/")[-1].split(".")[0].split("_")[2:]))
 
-fig, axs = plt.subplots(3, 3, figsize=(30, 22), dpi=80)
+fig, axs = plt.subplots(2, 2, figsize=(30, 22), dpi=80)
 
 
-def partial_share_y_axes(axs):
-    # Manage share using grouper objects
-    for row_idx in range(axs.shape[0]):
-        target = axs[row_idx, 0]
-        for col_idx in range(1, axs.shape[1]):
-            ax = axs[row_idx, col_idx]
-            target.get_shared_y_axes().join(target, ax)
+# def partial_share_y_axes(axs):
+#     # Manage share using grouper objects
+#     for row_idx in range(axs.shape[0]):
+#         target = axs[row_idx, 0]
+#         for col_idx in range(1, axs.shape[1]):
+#             ax = axs[row_idx, col_idx]
+#             target.get_shared_y_axes().join(target, ax)
 
-    # Turn off y tick labels and offset text for all but the left most column
-    for ax in axs[:, 1:].flat:
-        ax.yaxis.set_tick_params(which="both", labelleft=False, labelright=False)
-        ax.yaxis.offsetText.set_visible(False)
+#     # Turn off y tick labels and offset text for all but the left most column
+#     for ax in axs[:, 1:].flat:
+#         ax.yaxis.set_tick_params(which="both", labelleft=False, labelright=False)
+#         ax.yaxis.offsetText.set_visible(False)
 
 
-if SHAREY:
-    # We share y axis for the first 2 rows
-    partial_share_y_axes(axs[:2, :])
+# if SHAREY:
+#     # We share y axis for the first 2 rows
+#     partial_share_y_axes(axs[:2, :])
 
 # Keep Room for Strategy labels
 fig.subplots_adjust(hspace=5.0)
 flattened_axs = axs.flatten()
 
 METRICS_NAMES = {
-    "fed_camelyon16": "AUC",
-    "fed_lidc_idri": "DICE",
-    "fed_ixi": "DICE",
-    "fed_tcga_brca": "C-index",
-    "fed_kits19": "DICE",
-    "fed_isic2019": "Balanced Accuracy",
     "fed_heart_disease": "Accuracy",
 }
 palette = sns.color_palette("mako", 14)
+
 for idx, (ax, res, name) in enumerate(zip(flattened_axs, results, dataset_names)):
-    if name == dataset_names[-1]:
-        ax = flattened_axs[7]
+    # if name == dataset_names[-1]:
+    #     ax = flattened_axs[7]
     # Remove pooled results
     res = res.loc[res["Test"] != "Pooled Test"]
     # if "lidc" in name.lower():
@@ -178,20 +167,15 @@ for idx, (ax, res, name) in enumerate(zip(flattened_axs, results, dataset_names)
     # ugly but no time
     # current_title = " ".join([word.capitalize() for word in name.split("_")])
     title_dicts = {
-        "fed_camelyon16": "Fed-Camelyon16",
-        "fed_lidc_idri": "Fed-LIDC-IDRI",
-        "fed_ixi": "Fed-IXI",
-        "fed_tcga_brca": "Fed-TCGA-BRCA",
-        "fed_kits19": "Fed-KITS2019",
-        "fed_isic2019": "Fed-ISIC2019",
         "fed_heart_disease": "Fed-Heart-Disease",
     }
     current_title = title_dicts[name]
     ax.set_title(current_title, fontsize=45, fontweight="heavy")
 
-# Hide the two plots on the last row
-flattened_axs[-3].set_visible(False)
-flattened_axs[-1].set_visible(False)
+# # Hide the two plots on the last row
+# flattened_axs[-3].set_visible(False)
+# flattened_axs[-1].set_visible(False)
+
 plt.tight_layout()
 plt.savefig("plot_results_benchmarks.png")
 plt.savefig("plot_results_benchmarks.eps")
