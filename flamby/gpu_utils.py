@@ -19,13 +19,13 @@ def use_gpu_idx(idx, cpu_only=False):
     bool
         Whether we will be using GPU or not.
     """
-    gpu_detected = torch.cuda.is_available()
+    gpu_detected = torch.has_mps
     if not (gpu_detected) or cpu_only:
         return False
     else:
-        n_gpus = torch.cuda.device_count()
-        assert idx < n_gpus, f"You chose GPU {idx} that does not exist."
-        # We use environment variables to manage GPU
-        os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-        os.environ["CUDA_VISIBLE_DEVICES"] = str(idx)
+        # n_gpus = torch.cuda.device_count()
+        # assert idx < n_gpus, f"You chose GPU {idx} that does not exist."
+        # # We use environment variables to manage GPU
+        # os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+        # os.environ["CUDA_VISIBLE_DEVICES"] = str(idx)
         return True

@@ -66,7 +66,8 @@ def main(output_folder, debug=False):
         sys.exit()
 
     # get status of download
-    downloaded_status_file_path = os.path.join(output_folder, "download_status_file.csv")
+    downloaded_status_file_path = os.path.join(
+        output_folder, "download_status_file.csv")
     if not (os.path.exists(downloaded_status_file_path)):
         downloaded_status_file = pd.DataFrame()
         downloaded_status_file["Status"] = ["Not found"] * 4

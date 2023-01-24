@@ -42,8 +42,9 @@ def evaluate_model_on_tests(
     results_dict = {}
     y_true_dict = {}
     y_pred_dict = {}
-    if torch.cuda.is_available() and use_gpu:
-        model = model.cuda()
+    if torch.has_mps and use_gpu:
+        mps_device = torch.device("mps")
+        model = model.to(mps_device)
     model.eval()
     with torch.no_grad():
         for i in tqdm(range(len(test_dataloaders))):
@@ -51,9 +52,10 @@ def evaluate_model_on_tests(
             y_pred_final = []
             y_true_final = []
             for (X, y) in test_dataloader_iterator:
-                if torch.cuda.is_available() and use_gpu:
-                    X = X.cuda()
-                    y = y.cuda()
+                if torch.has_mps and use_gpu:
+                    mps_device = torch.device("mps")
+                    X = X.to(mps_device)
+                    y = y.to(mps_device)
                 y_pred = model(X).detach().cpu()
                 y = y.detach().cpu()
                 y_pred_final.append(y_pred.numpy())
