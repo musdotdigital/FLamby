@@ -30,6 +30,7 @@ strategies_names = [
     "FedYogi",
     "FedAdam",
 ]
+
 # Filtering only 100 updates strategies
 strategies = [strat + str(100) for strat in strategies_names]
 

@@ -28,11 +28,13 @@ def main(num_workers_torch, log=False, log_period=10, debug=False, cpu_only=Fals
         Whether or not to use the dataset obtained in debug mode. Default to False.
         Used for consistency with other datasets' APIs.
     """
+    print(
+        f"Using torch.multiprocessing_workers: {num_workers_torch}, log: {log}, log_period: {log_period}, debug: {debug}, cpu_only: {cpu_only}")
 
     metrics_dict = {"AUC": metric}
 
     use_gpu = torch.has_mps and not (cpu_only)
- 
+
     training_dl = dl(
         FedHeartDisease(train=True, pooled=True, debug=debug),
         num_workers=num_workers_torch,
@@ -58,22 +60,24 @@ def main(num_workers_torch, log=False, log_period=10, debug=False, cpu_only=Fals
 
     results = []
     seeds = np.arange(42, 47).tolist()
-    
+
     for seed in seeds:
         # At each new seed we re-initialize the model
         # and training_dl is shuffled as well
         torch.manual_seed(seed)
         m = Baseline()
         # We put the model on GPU whenever it is possible
+        device = "cpu"
         if use_gpu:
-            mps_device = torch.device("mps")
-            m = m.to(mps_device)
+            device = torch.device("mps")
+            m = m.to(device)
 
         loss = BaselineLoss()
         optimizer = optim.Adam(m.parameters(), lr=LR)
 
         if log:
             # We create one summarywriter for each seed in order to overlay the plots
+            print('Creating tensorboard writer...', seed)
             writer = SummaryWriter(log_dir=f"./runs/seed{seed}")
 
         for e in tqdm(range(NUM_EPOCHS_POOLED)):
@@ -81,18 +85,19 @@ def main(num_workers_torch, log=False, log_period=10, debug=False, cpu_only=Fals
                 # At each epoch we look at the histograms of all the network's parameters
                 for name, p in m.named_parameters():
                     writer.add_histogram(f"client_0/{name}", p, e)
+
             for s, (X, y) in enumerate(training_dl):
                 # traditional training loop with optional GPU transfer
                 if use_gpu:
-                    mps_device = torch.device("mps")
-                    X = X.to(mps_device)
-                    y = y.to(mps_device)
+                    X = X.to(device)
+                    y = y.to(device)
 
                 optimizer.zero_grad()
                 y_pred = m(X)
                 lm = loss(y_pred, y)
                 lm.backward()
                 optimizer.step()
+
                 if log:
                     current_step = s + num_local_steps_per_epoch * e
                     if (current_step % log_period) == 0:
@@ -114,6 +119,7 @@ def main(num_workers_torch, log=False, log_period=10, debug=False, cpu_only=Fals
         current_results_dict = evaluate_model_on_tests(
             m, [test_dl], metric, use_gpu=use_gpu
         )
+
         results.append(current_results_dict["client_test_0"])
         print(current_results_dict)
 
@@ -121,11 +127,12 @@ def main(num_workers_torch, log=False, log_period=10, debug=False, cpu_only=Fals
 
     if log:
         for i in range(results.shape[0]):
+            print('Writing results to tensorboard...', seeds[i])
             writer = SummaryWriter(log_dir=f"./runs/tests_seed{seeds[i]}")
             writer.add_scalar("AUC-test", results[i], 0)
 
     print("Benchmark Results on Heart Disease pooled:")
-    print(f"mAUC on 5 runs: {results.mean(): .2%} \\pm {results.std(): .2%}")
+    print(f"mAUC on {len(seeds)} runs: {results.mean(): .2%} \\pm {results.std(): .2%}")
 
 
 if __name__ == "__main__":

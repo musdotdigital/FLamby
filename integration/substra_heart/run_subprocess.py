@@ -166,7 +166,14 @@ class TorchDataset(fed_heart_disease.FedHeartDisease):
         super().__init__(**config)
 
 
+use_gpu = torch.has_mps
+device = "cpu"
+
 model = fed_heart_disease.Baseline()
+
+if use_gpu:
+    device = torch.device("mps")
+    model = model.to(device)
 
 
 class MyAlgo(TorchFedAvgAlgo):
