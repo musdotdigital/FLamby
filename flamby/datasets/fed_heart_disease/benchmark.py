@@ -1,4 +1,5 @@
 import argparse
+from typing import List
 
 import numpy as np
 import torch
@@ -15,12 +16,21 @@ from flamby.datasets.fed_heart_disease import (
     BaselineLoss,
     FedHeartDisease,
     metric,
+    NUM_CLIENTS
 )
 from flamby.utils import evaluate_model_on_tests
 
 
-def main(num_workers_torch, log=False, log_period=10, debug=False, cpu_only=False):
-    """Function to execute the benchmark on Heart Disease.
+def model_available(path: str):
+    try:
+        torch.load(path)
+        return True
+    except Exception:
+        return False
+
+
+def main(num_workers_torch, log=False, log_period=10, debug=False, cpu_only=False, center=[0], pooled=True):
+    """Function to execute the benchmark on Heart Disezase.
 
     Parameters
     ----------
@@ -28,28 +38,37 @@ def main(num_workers_torch, log=False, log_period=10, debug=False, cpu_only=Fals
         Whether or not to use the dataset obtained in debug mode. Default to False.
         Used for consistency with other datasets' APIs.
     """
+
     print(
-        f"Using torch.multiprocessing_workers: {num_workers_torch}, log: {log}, log_period: {log_period}, debug: {debug}, cpu_only: {cpu_only}")
+        f"Using torch.multiprocessing_workers: {num_workers_torch}, log: {log}, log_period: {log_period}, debug: {debug}, cpu_only: {cpu_only}, center: {center}")
 
     metrics_dict = {"AUC": metric}
 
     use_gpu = torch.has_mps and not (cpu_only)
 
     training_dl = dl(
-        FedHeartDisease(train=True, pooled=True, debug=debug),
+        FedHeartDisease(train=True, pooled=pooled, debug=debug,
+                        center=center),
         num_workers=num_workers_torch,
         batch_size=BATCH_SIZE,
         shuffle=True,
     )
 
-    test_dl = dl(
-        FedHeartDisease(train=False, pooled=True, debug=debug),
-        num_workers=num_workers_torch,
-        batch_size=BATCH_SIZE,
-        shuffle=False,
-    )
-    print(f"The training set pooled contains {len(training_dl.dataset)} records")
-    print(f"The test set pooled contains {len(test_dl.dataset)} records")
+    def test_dl(center: List[int]):
+        return dl(
+            FedHeartDisease(train=False, pooled=pooled, debug=debug,
+                            center=center),
+            num_workers=num_workers_torch,
+            batch_size=BATCH_SIZE,
+            shuffle=False,
+        )
+
+    TRAINING_CENTER_STRING = ''.join(str(e) for e in center)
+    OUTPUT_STRING = "pooled" if pooled else f"of center(s): {TRAINING_CENTER_STRING}"
+    MODEL_PATH = f'model_{TRAINING_CENTER_STRING}.pt'
+
+    print(
+        f"The training set {OUTPUT_STRING} contains {len(training_dl.dataset)} records")
 
     if log:
         # We compute the number of batches per epoch
@@ -59,75 +78,96 @@ def main(num_workers_torch, log=False, log_period=10, debug=False, cpu_only=Fals
         )
 
     results = []
-    seeds = np.arange(42, 47).tolist()
+    seeds = np.arange(42, 43).tolist()
 
     for seed in seeds:
         # At each new seed we re-initialize the model
         # and training_dl is shuffled as well
         torch.manual_seed(seed)
+
         m = Baseline()
-        # We put the model on GPU whenever it is possible
-        device = "cpu"
-        if use_gpu:
-            device = torch.device("mps")
-            m = m.to(device)
 
-        loss = BaselineLoss()
-        optimizer = optim.Adam(m.parameters(), lr=LR)
+        if not model_available(MODEL_PATH):
+            print('no model available, training...')
+            # We put the model on GPU whenever it is possible
+            device = "cpu"
+            if use_gpu:
+                device = torch.device("mps")
+                m = m.to(device)
 
-        if log:
-            # We create one summarywriter for each seed in order to overlay the plots
-            print('Creating tensorboard writer...', seed)
-            writer = SummaryWriter(log_dir=f"./runs/seed{seed}")
+            loss = BaselineLoss()
+            optimizer = optim.Adam(m.parameters(), lr=LR)
 
-        for e in tqdm(range(NUM_EPOCHS_POOLED)):
             if log:
-                # At each epoch we look at the histograms of all the network's parameters
-                for name, p in m.named_parameters():
-                    writer.add_histogram(f"client_0/{name}", p, e)
+                # We create one summarywriter for each seed in order to overlay the plots
+                print('Creating tensorboard writer...', seed)
+                writer = SummaryWriter(log_dir=f"./runs/seed{seed}")
 
-            for s, (X, y) in enumerate(training_dl):
-                # traditional training loop with optional GPU transfer
-                if use_gpu:
-                    X = X.to(device)
-                    y = y.to(device)
-
-                optimizer.zero_grad()
-                y_pred = m(X)
-                lm = loss(y_pred, y)
-                lm.backward()
-                optimizer.step()
-
+            for e in tqdm(range(NUM_EPOCHS_POOLED)):
                 if log:
-                    current_step = s + num_local_steps_per_epoch * e
-                    if (current_step % log_period) == 0:
-                        writer.add_scalar(
-                            "Loss/train/client",
-                            lm.item(),
-                            s + num_local_steps_per_epoch * e,
-                        )
-                        for k, v in metrics_dict.items():
-                            train_batch_metric = v(
-                                y.detach().cpu().numpy(), y_pred.detach().cpu().numpy()
-                            )
+                    # At each epoch we look at the histograms of all the network's parameters
+                    for name, p in m.named_parameters():
+                        writer.add_histogram(f"client_0/{name}", p, e)
+
+                for s, (X, y) in enumerate(training_dl):
+                    # traditional training loop with optional GPU transfer
+                    if use_gpu:
+                        X = X.to(device)
+                        y = y.to(device)
+
+                    optimizer.zero_grad()
+                    y_pred = m(X)
+                    lm = loss(y_pred, y)
+                    lm.backward()
+                    optimizer.step()
+
+                    if log:
+                        current_step = s + num_local_steps_per_epoch * e
+                        if (current_step % log_period) == 0:
                             writer.add_scalar(
-                                f"{k}/train/client",
-                                train_batch_metric,
+                                "Loss/train/client",
+                                lm.item(),
                                 s + num_local_steps_per_epoch * e,
                             )
+                            for k, v in metrics_dict.items():
+                                train_batch_metric = v(
+                                    y.detach().cpu().numpy(), y_pred.detach().cpu().numpy()
+                                )
+                                writer.add_scalar(
+                                    f"{k}/train/client",
+                                    train_batch_metric,
+                                    s + num_local_steps_per_epoch * e,
+                                )
+
+            # Print optimizer's state_dict
+            print("Optimizer's state_dict:")
+            for var_name in optimizer.state_dict():
+                print(var_name, "\t", optimizer.state_dict()[var_name])
+
+            torch.save(m, MODEL_PATH)
+
+        else:
+            m = torch.load(MODEL_PATH)
+
+        # Print model's state_dict
+        print("Model's state_dict:")
+        for param_tensor in m.state_dict():
+            print(param_tensor, "\t", m.state_dict()[param_tensor].size())
 
         current_results_dict = evaluate_model_on_tests(
-            m, [test_dl], metric, use_gpu=use_gpu
+            m, [test_dl([i]) for i in range(NUM_CLIENTS)], metric, use_gpu=use_gpu
         )
 
-        results.append(current_results_dict["client_test_0"])
-        print(current_results_dict)
+        print('current_results_dict', current_results_dict)
+
+        for i in range(NUM_CLIENTS):
+            results.append(current_results_dict[f"client_test_{i}"])
 
     results = np.array(results)
+    print('results', results)
 
     if log:
         for i in range(results.shape[0]):
-            print('Writing results to tensorboard...', seeds[i])
             writer = SummaryWriter(log_dir=f"./runs/tests_seed{seeds[i]}")
             writer.add_scalar("AUC-test", results[i], 0)
 
@@ -165,5 +205,20 @@ if __name__ == "__main__":
         help="Deactivate the GPU to perform all computations on CPU only.",
     )
 
+    parser.add_argument(
+        "--centers",
+        nargs='+',
+        type=int,
+        help="Which center(s) to generate model from.",
+        default=[0],
+    )
+
+    parser.add_argument(
+        "--pool",
+        action="store_true",
+        help="Whether to use the dataset obtained in debug mode.",
+    )
+
     args = parser.parse_args()
-    main(args.num_workers_torch, args.log, args.log_period, args.debug, args.cpu_only)
+    main(args.num_workers_torch, args.log, args.log_period,
+         args.debug, args.cpu_only, args.centers, args.pool)
