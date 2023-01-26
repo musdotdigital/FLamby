@@ -65,7 +65,7 @@ def main(num_workers_torch, log=False, log_period=10, debug=False, cpu_only=Fals
 
     TRAINING_CENTER_STRING = ''.join(str(e) for e in center)
     OUTPUT_STRING = "pooled" if pooled else f"of center(s): {TRAINING_CENTER_STRING}"
-    MODEL_PATH = f'model_{TRAINING_CENTER_STRING}.pt'
+    MODEL_PATH = 'models/' + f'model_{TRAINING_CENTER_STRING}.pt'
 
     print(
         f"The training set {OUTPUT_STRING} contains {len(training_dl.dataset)} records")
