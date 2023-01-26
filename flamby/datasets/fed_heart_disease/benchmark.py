@@ -63,7 +63,7 @@ def main(num_workers_torch, log=False, log_period=10, debug=False, cpu_only=Fals
             shuffle=False,
         )
 
-    TRAINING_CENTER_STRING = ''.join(str(e) for e in center)
+    TRAINING_CENTER_STRING = ''.join(str(e) for e in center) if not pooled else 'pooled'
     OUTPUT_STRING = "pooled" if pooled else f"of center(s): {TRAINING_CENTER_STRING}"
     MODEL_PATH = 'models/' + f'model_{TRAINING_CENTER_STRING}.pt'
 
@@ -88,7 +88,7 @@ def main(num_workers_torch, log=False, log_period=10, debug=False, cpu_only=Fals
         m = Baseline()
 
         if not model_available(MODEL_PATH):
-            print('no model available, training...')
+            print(f'{MODEL_PATH} not found, training...')
             # We put the model on GPU whenever it is possible
             device = "cpu"
             if use_gpu:
