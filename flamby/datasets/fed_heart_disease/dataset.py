@@ -1,13 +1,18 @@
 import os
 from pathlib import Path
+from typing import List
 
 import numpy as np
 import pandas as pd
 import torch
 from sklearn.model_selection import train_test_split
 from torch.utils.data import Dataset
-
 from flamby.utils import check_dataset_from_config
+
+
+def get_num_clients():
+    from flamby.datasets.fed_heart_disease.common import NUM_CLIENTS
+    return NUM_CLIENTS
 
 
 class HeartDiseaseRaw(Dataset):
@@ -73,7 +78,8 @@ class HeartDiseaseRaw(Dataset):
         self.y_dtype = y_dtype
         self.debug = debug
 
-        self.centers_number = {"cleveland": 0, "hungarian": 1, "switzerland": 2, "va": 3}
+        self.centers_number = {"cleveland": 0,
+                               "hungarian": 1, "switzerland": 2, "va": 3}
 
         self.features = pd.DataFrame()
         self.labels = pd.DataFrame()
@@ -160,7 +166,8 @@ class HeartDiseaseRaw(Dataset):
             }
 
         # We finally broadcast the means and stds over all datasets
-        self.mean_of_features = torch.zeros((len(self.features), 13), dtype=self.X_dtype)
+        self.mean_of_features = torch.zeros(
+            (len(self.features), 13), dtype=self.X_dtype)
         self.std_of_features = torch.ones((len(self.features), 13), dtype=self.X_dtype)
         for i in range(self.mean_of_features.shape[0]):
             self.mean_of_features[i] = self.centers_stats[self.centers[i]]["mean"]
@@ -243,7 +250,7 @@ class FedHeartDisease(HeartDiseaseRaw):
 
     def __init__(
         self,
-        center: int = 0,
+        center: List[int] = [0],
         train: bool = True,
         pooled: bool = False,
         X_dtype: torch.dtype = torch.float32,
@@ -261,9 +268,13 @@ class FedHeartDisease(HeartDiseaseRaw):
             data_path=data_path,
             normalize=normalize,
         )
-        assert center in [0, 1, 2, 3]
 
-        self.chosen_centers = [center]
+        for c in center:
+            assert c in range(
+                0, get_num_clients()), f"Must specify a valid center, number of clients is {get_num_clients()}"
+
+        self.chosen_centers = center
+
         if pooled:
             self.chosen_centers = [0, 1, 2, 3]
             # We set the apropriate statistics
