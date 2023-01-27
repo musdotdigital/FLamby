@@ -14,7 +14,7 @@ from flamby.datasets.fed_heart_disease import (
     NUM_EPOCHS_POOLED,
     Baseline,
     BaselineLoss,
-    FedHeartDisease,
+    FedHeartDiseaseCentralised,
     metric,
     NUM_CLIENTS
 )
@@ -47,8 +47,8 @@ def main(num_workers_torch, log=False, log_period=10, debug=False, cpu_only=Fals
     use_gpu = torch.has_mps and not (cpu_only)
 
     training_dl = dl(
-        FedHeartDisease(train=True, pooled=pooled, debug=debug,
-                        center=center),
+        FedHeartDiseaseCentralised(train=True, pooled=pooled, debug=debug,
+                                   center=center),
         num_workers=num_workers_torch,
         batch_size=BATCH_SIZE,
         shuffle=True,
@@ -56,8 +56,8 @@ def main(num_workers_torch, log=False, log_period=10, debug=False, cpu_only=Fals
 
     def test_dl(center: List[int]):
         return dl(
-            FedHeartDisease(train=False, pooled=pooled, debug=debug,
-                            center=center),
+            FedHeartDiseaseCentralised(train=False, pooled=pooled, debug=debug,
+                                       center=center),
             num_workers=num_workers_torch,
             batch_size=BATCH_SIZE,
             shuffle=False,

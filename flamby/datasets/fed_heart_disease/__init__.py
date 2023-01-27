@@ -8,6 +8,7 @@ from flamby.datasets.fed_heart_disease.common import (
     FedClass,
 )
 from flamby.datasets.fed_heart_disease.dataset import FedHeartDisease, HeartDiseaseRaw
+from flamby.datasets.fed_heart_disease.dataset_centralised import FedHeartDiseaseCentralised, HeartDiseaseRawCentralised
 from flamby.datasets.fed_heart_disease.loss import BaselineLoss
 from flamby.datasets.fed_heart_disease.metric import metric
 from flamby.datasets.fed_heart_disease.metric_fed import metric_fed
