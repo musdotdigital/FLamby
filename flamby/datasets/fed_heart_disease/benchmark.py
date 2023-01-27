@@ -45,7 +45,7 @@ def main(num_workers_torch, log=False, log_period=10, debug=False, cpu_only=Fals
     print(
         f"Using torch.multiprocessing_workers: {num_workers_torch}, log: {log}, log_period: {log_period}, debug: {debug}, cpu_only: {cpu_only}, center: {center}")
 
-    metrics_dict = {"AUC": metric}
+    metrics_dict = {"FN": metric_fn}
 
     use_gpu = torch.has_mps and not (cpu_only)
 
@@ -104,13 +104,14 @@ def main(num_workers_torch, log=False, log_period=10, debug=False, cpu_only=Fals
             if log:
                 # We create one summarywriter for each seed in order to overlay the plots
                 print('Creating tensorboard writer...', seed)
-                writer = SummaryWriter(log_dir=f"./runs/seed{seed}")
+                writer = SummaryWriter(log_dir=f"./runs/seed{seed}/{MODEL_PATH}")
 
             for e in tqdm(range(NUM_EPOCHS_POOLED)):
                 if log:
                     # At each epoch we look at the histograms of all the network's parameters
                     for name, p in m.named_parameters():
-                        writer.add_histogram(f"client_0/{name}", p, e)
+                        writer.add_histogram(
+                            f"client_{TRAINING_CENTER_STRING}/{name}", p, e)
 
                 for s, (X, y) in enumerate(training_dl):
                     # traditional training loop with optional GPU transfer
