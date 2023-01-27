@@ -7,6 +7,7 @@ import torch.optim as optim
 from torch.utils.data import DataLoader as dl
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
+import pandas as pd
 
 from flamby.datasets.fed_heart_disease import (
     BATCH_SIZE,
@@ -16,6 +17,8 @@ from flamby.datasets.fed_heart_disease import (
     BaselineLoss,
     FedHeartDisease,
     metric,
+    metric_fp,
+    metric_fn,
     NUM_CLIENTS
 )
 from flamby.utils import evaluate_model_on_tests
@@ -154,8 +157,8 @@ def main(num_workers_torch, log=False, log_period=10, debug=False, cpu_only=Fals
         for param_tensor in m.state_dict():
             print(param_tensor, "\t", m.state_dict()[param_tensor].size())
 
-        current_results_dict = evaluate_model_on_tests(
-            m, [test_dl([i]) for i in range(NUM_CLIENTS)], metric, use_gpu=use_gpu
+        current_results_dict, y_true_dict, y_pred_dict = evaluate_model_on_tests(
+            m, [test_dl([i]) for i in range(NUM_CLIENTS)], metric_fn, use_gpu=use_gpu, return_pred=True
         )
 
         print('current_results_dict', current_results_dict)
@@ -164,6 +167,7 @@ def main(num_workers_torch, log=False, log_period=10, debug=False, cpu_only=Fals
             results.append(current_results_dict[f"client_test_{i}"])
 
     results = np.array(results)
+
     print('results', results)
 
     if log:
@@ -222,3 +226,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
     main(args.num_workers_torch, args.log, args.log_period,
          args.debug, args.cpu_only, args.centers, args.pool)
+
+    # df = pd.DataFrame(columns=['current_results', 'y_true', 'y_pred'])
+    # df.loc[0] = [current_results_dict, y_true_dict, y_pred_dict]
+    # df.to_csv('results.csv')
