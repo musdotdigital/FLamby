@@ -115,6 +115,7 @@ setup(
         "tqdm",
         "umap-learn",
         "opacus",
+        "substrafl==0.32.0"
     ],
     extras_require={
         "cam16": camelyon16,

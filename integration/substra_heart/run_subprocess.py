@@ -24,15 +24,17 @@ from substra import Client
 from flamby.datasets import fed_heart_disease
 
 
+N_CLIENTS = fed_heart_disease.NUM_CLIENTS
 MODE = substra.BackendType.LOCAL_SUBPROCESS
 
 # Create the substra clients
-data_provider_clients = [Client(backend_type=MODE)
-                         for _ in range(fed_heart_disease.NUM_CLIENTS)]
+clients = [Client(backend_type=MODE) for _ in range(N_CLIENTS)]
 
+# Store clients in a dict with their org id as key
 data_provider_clients = {client.organization_info(
-).organization_id: client for client in data_provider_clients}
+).organization_id: client for client in clients}
 
+# Create the algo provider client
 algo_provider_client = Client(backend_type=MODE)
 
 # Store their IDs
@@ -41,22 +43,41 @@ DATA_PROVIDER_ORGS_ID = list(data_provider_clients.keys())
 # The org id on which your computation tasks are registered
 ALGO_ORG_ID = algo_provider_client.organization_info().organization_id
 
+# %%
+# Dataset registration
+# ====================
+#
+# A :ref:`documentation/concepts:Dataset` is composed of an **opener**, which is a Python script that can load
+# the data from the files in memory and a description markdown file.
+# The :ref:`documentation/concepts:Dataset` object itself does not contain the data. The proper asset that contains the
+# data is the **datasample asset**.
+#
+# A **datasample** contains a local path to the data. A datasample can be linked to a dataset in order to add data to a
+# dataset.
+#
+# Data privacy is a key concept for Federated Learning experiments. That is why we set
+# :ref:`documentation/concepts:Permissions` for each :ref:`documentation/concepts:Assets` to define which organization
+# can use them.
+#
+# Note that metadata, for instance: assets' creation date, assets owner, are visible by all the organizations of a
+# network.
 
+# Path to empty data samples
 assets_directory = pathlib.Path.cwd() / "assets"
-
-print(assets_directory)
 empty_path = assets_directory / "empty_datasamples"
 
+# Permissions for the data samples
 permissions_dataset = Permissions(public=False, authorized_ids=[ALGO_ORG_ID])
 
+# Train and test datasets keys
 train_dataset_keys = {}
 test_dataset_keys = {}
-
 train_datasample_keys = {}
 test_datasample_keys = {}
 
 
-for ind, org_id in enumerate(DATA_PROVIDER_ORGS_ID):
+for i, org_id in enumerate(DATA_PROVIDER_ORGS_ID):
+
     client = data_provider_clients[org_id]
 
     # DatasetSpec is the specification of a dataset. It makes sure every field
@@ -88,11 +109,9 @@ for ind, org_id in enumerate(DATA_PROVIDER_ORGS_ID):
         data_sample,
         local=True,
     )
-
     train_datasample_keys[org_id] = train_datasample_key
 
     # Add the testing data.
-
     test_dataset_key = client.add_dataset(
         DatasetSpec(
             name="FLamby",
@@ -115,14 +134,27 @@ for ind, org_id in enumerate(DATA_PROVIDER_ORGS_ID):
         data_sample,
         local=True,
     )
-
     test_datasample_keys[org_id] = test_datasample_key
 
 
+# %%
+# Metric registration
+# ===================
+#
+# A metric is a function used to compute the score of predictions on one or several
+# **datasamples**.
+#
+# To add a metric, you need to define a function that computes and return a performance
+# from the datasamples (as returned by the opener) and the predictions_path (to be loaded within the function).
+#
+# When using a Torch SubstraFL algorithm, the predictions are saved in the `predict` function under the numpy format
+# so that you can simply load them using `np.load`.
+#
+# After defining the metrics dependencies and permissions, we use the `add_metric` function to register the metric.
+# This metric will be used on the test datasamples to evaluate the model performances.
 def fed_heart_disease_metric(datasamples, predictions_path):
 
     config = datasamples
-
     dataset = fed_heart_disease.FedHeartDisease(**config)
     dataloader = data.DataLoader(dataset, batch_size=len(dataset))
 
@@ -150,14 +182,70 @@ metric_key = add_metric(
     dependencies=metric_deps,
 )
 
+# %%
+# Specify the machine learning components
+# ***************************************
+#
+# This section uses the PyTorch based SubstraFL API to simplify the machine learning components definition.
+# However, SubstraFL is compatible with any machine learning framework.
+#
+# In this section, you will:
+#
+# - register a model and its dependencies
+# - specify the federated learning strategy
+# - specify the organizations where to train and where to aggregate
+# - specify the organizations where to test the models
+# - actually run the computations
 
-NUM_UPDATES = 16
+
+# %%
+# Model definition
+# ================
+#
 SEED = 42
 
+model = fed_heart_disease.MLP()
+criterion = fed_heart_disease.BaselineLoss()
+optimizer = fed_heart_disease.Optimizer(model.parameters(), lr=fed_heart_disease.LR)
+# model = torch.load('models/model_pooled.pt', map_location=device)
+
+use_gpu = torch.has_mps
+device = "cpu"
+
+if use_gpu:
+    device = torch.device("mps")
+    model = model.to(device)
+
+# %%
+# Specifying on how much data to train
+# ====================================
+#
+# To specify on how much data to train at each round, we use the `index_generator` object.
+# We specify the batch size and the number of batches to consider for each round (called `num_updates`).
+# See :ref:`substrafl_doc/substrafl_overview:Index Generator` for more details.
+
+
+# Number of model update between each FL strategy aggregation.
+NUM_UPDATES = 16
+
+# Number of samples per update.
+BATCH_SIZE = fed_heart_disease.BATCH_SIZE
+
 index_generator = NpIndexGenerator(
-    batch_size=fed_heart_disease.BATCH_SIZE,
+    batch_size=BATCH_SIZE,
     num_updates=NUM_UPDATES,
 )
+
+# %%
+# Torch Dataset definition
+# ==========================
+#
+# This torch Dataset is used to preprocess the data using the `__getitem__` function.
+#
+# This torch Dataset needs to have a specific `__init__` signature, that must contain (self, datasamples, is_inference).
+#
+# The `__getitem__` function is expected to return (inputs, outputs) if `is_inference` is `False`, else only the inputs.
+# This behavior can be changed by re-writing the `_local_train` or `predict` methods.
 
 
 class TorchDataset(fed_heart_disease.FedHeartDisease):
@@ -165,24 +253,23 @@ class TorchDataset(fed_heart_disease.FedHeartDisease):
         config = datasamples
         super().__init__(**config)
 
-
-use_gpu = torch.has_mps
-device = "cpu"
-
-model = fed_heart_disease.Baseline()
-
-if use_gpu:
-    device = torch.device("mps")
-    model = model.to(device)
+# %%
+# SubstraFL algo definition
+# ==========================
+#
+# A SubstraFL Algo gathers all the elements that we defined that run locally in each organization.
+# This is the only SubstraFL object that is framework specific (here PyTorch specific).
+#
+# The `TorchDataset` is passed **as a class** to the `Torch algorithm <substrafl_doc/api/algorithms:Torch Algorithms>`_.
+# Indeed, this `TorchDataset` will be instantiated directly on the data provider organization.
 
 
 class MyAlgo(TorchFedAvgAlgo):
     def __init__(self):
         super().__init__(
             model=model,
-            criterion=fed_heart_disease.BaselineLoss(),
-            optimizer=fed_heart_disease.Optimizer(
-                model.parameters(), lr=fed_heart_disease.LR),
+            criterion=criterion,
+            optimizer=optimizer,
             index_generator=index_generator,
             dataset=TorchDataset,
             seed=SEED,
@@ -207,8 +294,27 @@ class MyAlgo(TorchFedAvgAlgo):
         predictions = predictions.cpu().detach()
         self._save_predictions(predictions, predictions_path)
 
+# %%
+# Federated Learning strategies
+# =============================
+#
+# A FL strategy specifies how to train a model on distributed data.
+# The most well known strategy is the Federated Averaging strategy: train locally a model on every organization,
+# then aggregate the weight updates from every organization, and then apply locally at each organization the averaged
+# updates.
+
 
 strategy = FedAvg()
+
+# %%
+# Where to train where to aggregate
+# =================================
+#
+# We specify on which data we want to train our model, using the :ref:`substrafl_doc/api/nodes:TrainDataNode` objets.
+# Here we train on the two datasets that we have registered earlier.
+#
+# The :ref:`substrafl_doc/api/nodes:AggregationNode` specifies the organization on which the aggregation operation
+# will be computed.
 
 aggregation_node = AggregationNode(ALGO_ORG_ID)
 
@@ -222,9 +328,17 @@ for org_id in DATA_PROVIDER_ORGS_ID:
         data_manager_key=train_dataset_keys[org_id],
         data_sample_keys=[train_datasample_keys[org_id]],
     )
-
     train_data_nodes.append(train_data_node)
 
+# %%
+# Where and when to test
+# ======================
+#
+# With the same logic as the train nodes, we create :ref:`substrafl_doc/api/nodes:TestDataNode` to specify on which
+# data we want to test our model.
+#
+# The :ref:`substrafl_doc/api/evaluation_strategy:Evaluation Strategy` defines where and at which frequency we
+# evaluate the model, using the given metric(s) that you registered in a previous section.
 
 test_data_nodes = list()
 
@@ -242,8 +356,29 @@ for org_id in DATA_PROVIDER_ORGS_ID:
 # Test at the end of every round
 my_eval_strategy = EvaluationStrategy(test_data_nodes=test_data_nodes, rounds=1)
 
+# %%
+# Running the experiment
+# **********************
+#
+# We now have all the necessary objects to launch our experiment. Please see a summary below of all the objects we created so far:
+#
+# - A :ref:`documentation/references/sdk:Client` to add or retrieve the assets of our experiment, using their keys to
+#   identify them.
+# - An `Torch algorithm <substrafl_doc/api/algorithms:Torch Algorithms>`_ to define the training parameters *(optimizer, train
+#   function, predict function, etc...)*.
+# - A `Federated Strategy <substrafl_doc/api/strategies:Strategies>`_, to specify how to train the model on
+#   distributed data.
+# - `Train data nodes <substrafl_doc/api/nodes:TrainDataNode>`_ to indicate on which data to train.
+# - An :ref:`substrafl_doc/api/evaluation_strategy:Evaluation Strategy`, to define where and at which frequency we
+#   evaluate the model.
+# - An :ref:`substrafl_doc/api/nodes:AggregationNode`, to specify the organization on which the aggregation operation
+#   will be computed.
+# - The **number of rounds**, a round being defined by a local training step followed by an aggregation operation.
+# - An **experiment folder** to save a summary of the operation made.
+# - The :ref:`substrafl_doc/api/dependency:Dependency` to define the libraries on which the experiment needs to run.
 
-# Number of time to apply the compute plan.
+
+# A round is defined by a local training step followed by an aggregation operation
 NUM_ROUNDS = 3
 
 # The Dependency object is instantiated in order to install the right libraries in
@@ -265,19 +400,45 @@ compute_plan = execute_experiment(
     dependencies=algo_deps,
 )
 
+# %%
+# Explore the results
+# *******************
 
-plt.title("Performance evolution on each center of the baseline on Fed-TCGA-BRCA with Federated Averaging training")
+# %%
+# List results
+# ============
+
+performance_df = pd.DataFrame(client.get_performances(compute_plan.key).dict())
+print("\nPerformance Table: \n")
+print(performance_df[["worker", "round_idx", "performance"]])
+
+
+# %%
+# Plot results
+# ============
+plt.title("Test dataset results")
 plt.xlabel("Rounds")
 plt.ylabel("Metric")
 
-performance_df = pd.DataFrame(client.get_performances(compute_plan.key).dict())
 
 for i, id in enumerate(DATA_PROVIDER_ORGS_ID):
     df = performance_df.query(f"worker == '{id}'")
     plt.plot(df["round_idx"], df["performance"], label=f"Client {i} ({id})")
 
-plt.legend(loc=(1.1, 0.3), title="Test set")
+# plt.legend(loc=(1.1, 0.3), title="Test set")
+plt.legend(loc="lower right")
 plt.show()
+
+
+# %%
+# Download a model
+# ================
+#
+# After the experiment, you might be interested in downloading your trained model.
+# To do so, you will need the source code in order to reload your code architecture in memory.
+# You have the option to choose the client and the round you are interested in downloading.
+#
+# If `round_idx` is set to `None`, the last round will be selected by default.
 
 
 client_to_dowload_from = DATA_PROVIDER_ORGS_ID[0]
