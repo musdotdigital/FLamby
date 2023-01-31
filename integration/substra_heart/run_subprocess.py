@@ -215,25 +215,32 @@ metric_key = add_metric(
 # %%
 # Model definition
 # ================
+# To load a model replace model and remove selection statements with the following:
+# model = torch.load('models/model_pooled.pt', map_location=device)
 #
 answer = inquirer.prompt(questions)
 
 SEED = 42
 
-
-model = fed_heart_disease.Baseline()
+model = None
+optimizer = None
 criterion = fed_heart_disease.BaselineLoss()
-# model = torch.load('models/model_pooled.pt', map_location=device)
 
 if answer["model_type"] == "MLP":
     print("Using MLP model")
     model = fed_heart_disease.MLP()
+elif answer["model_type"] == "Baseline":
+    print("Using MLP model")
+    model = fed_heart_disease.Baseline()
 
-optimizer = fed_heart_disease.AdamOptimizer(model.parameters(), lr=fed_heart_disease.LR)
 
 if answer["optimiser"] == "SGD":
     print("Using SGD optimiser")
     optimizer = fed_heart_disease.SGDOptimizer(
+        model.parameters(), lr=fed_heart_disease.LR)
+elif answer["optimiser"] == "Adam":
+    print("Using Adam optimiser")
+    optimizer = fed_heart_disease.AdamOptimizer(
         model.parameters(), lr=fed_heart_disease.LR)
 
 use_gpu = torch.has_mps
@@ -289,10 +296,14 @@ class TorchDataset(fed_heart_disease.FedHeartDisease):
 # The most well known strategy is the Federated Averaging strategy: train locally a model on every organization,
 # then aggregate the weight updates from every organization, and then apply locally at each organization the averaged
 # updates.
-strategy = FedAvg()
-TORCH_ALGO = TorchFedAvgAlgo
+strategy = None
+TORCH_ALGO = None
 
-if answer["federated_stat"] == "SingleOrganization":
+if answer["federated_stat"] == "FedAvg":
+    print("Using FedAvg")
+    strategy = FedAvg()
+    TORCH_ALGO = TorchFedAvgAlgo
+elif answer["federated_stat"] == "SingleOrganization":
     print("Using SingleOrganization")
     strategy = SingleOrganization()
     TORCH_ALGO = TorchSingleOrganizationAlgo
