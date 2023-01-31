@@ -6,7 +6,8 @@ NUM_CLIENTS = 4
 BATCH_SIZE = 4
 NUM_EPOCHS_POOLED = 50
 LR = 0.001
-Optimizer = torch.optim.Adam
+AdamOptimizer = torch.optim.Adam
+SGDOptimizer = torch.optim.SGD
 
 FedClass = FedHeartDisease
 

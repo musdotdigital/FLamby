@@ -3,7 +3,8 @@ from flamby.datasets.fed_heart_disease.common import (
     LR,
     NUM_CLIENTS,
     NUM_EPOCHS_POOLED,
-    Optimizer,
+    AdamOptimizer,
+    SGDOptimizer,
     get_nb_max_rounds,
     FedClass,
 )

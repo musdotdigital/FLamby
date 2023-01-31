@@ -1,9 +1,18 @@
-from substrafl.strategies import FedAvg
 import torch
-from substrafl.model_loading import load_algo
-from substrafl.model_loading import download_algo_files
+from torch.utils import data
 import matplotlib.pyplot as plt
 import pandas as pd
+import numpy as np
+import pathlib
+import substra
+import inquirer
+from substra import Client
+from substra.sdk.schemas import Permissions
+from substra.sdk.schemas import DataSampleSpec
+from substra.sdk.schemas import DatasetSpec
+from substrafl.strategies import FedAvg, SingleOrganization, NewtonRaphson, Scaffold, Strategy, __all__ as strategies
+from substrafl.model_loading import load_algo
+from substrafl.model_loading import download_algo_files
 from substrafl.experiment import execute_experiment
 from substrafl.evaluation_strategy import EvaluationStrategy
 from substrafl.nodes import TestDataNode
@@ -13,15 +22,19 @@ from substrafl.algorithms.pytorch import TorchFedAvgAlgo
 from substrafl.index_generator import NpIndexGenerator
 from substrafl.remote.register import add_metric
 from substrafl.dependency import Dependency
-from torch.utils import data
-import numpy as np
-from substra.sdk.schemas import Permissions
-from substra.sdk.schemas import DataSampleSpec
-from substra.sdk.schemas import DatasetSpec
-import pathlib
-import substra
-from substra import Client
 from flamby.datasets import fed_heart_disease
+
+questions = [
+    inquirer.List('model_type',
+                  message="What model would you like to use?",
+                  choices=['MLP', 'Linear']),
+    inquirer.List('optimiser',
+                  message="What optimiser would you like to use?",
+                  choices=['Adam', 'SGD']),
+    inquirer.List('federated_stat',
+                  message="What federated strategy would you like to use?",
+                  choices=strategies)
+]
 
 
 N_CLIENTS = fed_heart_disease.NUM_CLIENTS
@@ -202,12 +215,21 @@ metric_key = add_metric(
 # Model definition
 # ================
 #
+answer = inquirer.prompt(questions)
+
 SEED = 42
 
-model = fed_heart_disease.MLP()
+
+model = fed_heart_disease.Baseline()
 criterion = fed_heart_disease.BaselineLoss()
-optimizer = fed_heart_disease.Optimizer(model.parameters(), lr=fed_heart_disease.LR)
+optimizer = fed_heart_disease.AdamOptimizer(model.parameters(), lr=fed_heart_disease.LR)
 # model = torch.load('models/model_pooled.pt', map_location=device)
+
+if answer["model_type"] == "MLP":
+    model = fed_heart_disease.MLP()
+if answer["optimiser"] == "SGD":
+    optimizer = fed_heart_disease.SGDOptimizer(
+        model.parameters(), lr=fed_heart_disease.LR)
 
 use_gpu = torch.has_mps
 device = "cpu"
@@ -294,6 +316,7 @@ class MyAlgo(TorchFedAvgAlgo):
         predictions = predictions.cpu().detach()
         self._save_predictions(predictions, predictions_path)
 
+
 # %%
 # Federated Learning strategies
 # =============================
@@ -302,9 +325,17 @@ class MyAlgo(TorchFedAvgAlgo):
 # The most well known strategy is the Federated Averaging strategy: train locally a model on every organization,
 # then aggregate the weight updates from every organization, and then apply locally at each organization the averaged
 # updates.
-
-
 strategy = FedAvg()
+
+if answer["federated_stat"] == "Strategy":
+    strategy = Strategy()
+elif answer["federated_stat"] == "SingleOrganization":
+    strategy = SingleOrganization()
+elif answer["federated_stat"] == "Scaffold":
+    strategy = Scaffold()
+elif answer["federated_stat"] == "NewtonRaphson":
+    strategy = NewtonRaphson()
+
 
 # %%
 # Where to train where to aggregate
