@@ -10,7 +10,7 @@ from substra import Client
 from substra.sdk.schemas import Permissions
 from substra.sdk.schemas import DataSampleSpec
 from substra.sdk.schemas import DatasetSpec
-from substrafl.strategies import FedAvg, SingleOrganization, NewtonRaphson, Scaffold, Strategy, __all__ as strategies
+from substrafl.strategies import FedAvg, SingleOrganization, Scaffold, __all__ as strategies
 from substrafl.model_loading import load_algo
 from substrafl.model_loading import download_algo_files
 from substrafl.experiment import execute_experiment
@@ -234,7 +234,7 @@ elif answer["model_type"] == "Baseline":
     model = fed_heart_disease.Baseline()
 
 
-if answer["optimiser"] == "SGD":
+if answer["optimiser"] == "SDG":
     print("Using SGD optimiser")
     optimizer = fed_heart_disease.SGDOptimizer(
         model.parameters(), lr=fed_heart_disease.LR)
@@ -303,18 +303,21 @@ if answer["federated_stat"] == "FedAvg":
     print("Using FedAvg")
     strategy = FedAvg()
     TORCH_ALGO = TorchFedAvgAlgo
+
 elif answer["federated_stat"] == "SingleOrganization":
     print("Using SingleOrganization")
     strategy = SingleOrganization()
     TORCH_ALGO = TorchSingleOrganizationAlgo
+
 elif answer["federated_stat"] == "Scaffold":
     print("Using Scaffold")
     strategy = Scaffold()
     TORCH_ALGO = TorchScaffoldAlgo
-elif answer["federated_stat"] == "NewtonRaphson":
-    print("Using NewtonRaphson")
-    strategy = NewtonRaphson(damping_factor=0.1)
-    TORCH_ALGO = TorchNewtonRaphsonAlgo
+
+elif answer["federated_stat"] == "NewtonRaphson" or answer["federated_stat"] == "Strategy":
+    print("NewtonRaphson and Strategy algorithms are not yet supported, using FedAvg")
+    strategy = FedAvg()
+    TORCH_ALGO = TorchFedAvgAlgo
 
 # %%
 # SubstraFL algo definition
