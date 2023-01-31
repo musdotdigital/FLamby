@@ -3,9 +3,11 @@ from flamby.datasets.fed_heart_disease.common import (
     LR,
     NUM_CLIENTS,
     NUM_EPOCHS_POOLED,
-    Optimizer,
+    AdamOptimizer,
+    SGDOptimizer,
     get_nb_max_rounds,
     FedClass,
+    __all__ as optimizers,
 )
 from flamby.datasets.fed_heart_disease.dataset import FedHeartDisease, HeartDiseaseRaw
 from flamby.datasets.fed_heart_disease.dataset_centralised import FedHeartDiseaseCentralised, HeartDiseaseRawCentralised
@@ -16,3 +18,4 @@ from flamby.datasets.fed_heart_disease.metric_fp import metric_fp
 from flamby.datasets.fed_heart_disease.metric_fn import metric_fn
 from flamby.datasets.fed_heart_disease.model import Baseline
 from flamby.datasets.fed_heart_disease.model import MLP
+from flamby.datasets.fed_heart_disease.model import (__all__ as models)

@@ -27,3 +27,5 @@ class MLP(nn.Module):
         output = self.fc2(relu)
         output = self.sigmoid(output)
         return output
+
+__all__ = ['Baseline', 'MLP']
