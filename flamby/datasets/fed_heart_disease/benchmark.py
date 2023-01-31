@@ -7,6 +7,7 @@ import torch.optim as optim
 from torch.utils.data import DataLoader as dl
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
+import pandas as pd
 
 from flamby.datasets.fed_heart_disease import (
     BATCH_SIZE,
@@ -16,6 +17,8 @@ from flamby.datasets.fed_heart_disease import (
     BaselineLoss,
     FedHeartDiseaseCentralised,
     metric,
+    metric_fp,
+    metric_fn,
     NUM_CLIENTS
 )
 from flamby.utils import evaluate_model_on_tests
@@ -42,7 +45,7 @@ def main(num_workers_torch, log=False, log_period=10, debug=False, cpu_only=Fals
     print(
         f"Using torch.multiprocessing_workers: {num_workers_torch}, log: {log}, log_period: {log_period}, debug: {debug}, cpu_only: {cpu_only}, center: {center}")
 
-    metrics_dict = {"AUC": metric}
+    metrics_dict = {"FN": metric_fn}
 
     use_gpu = torch.has_mps and not (cpu_only)
 
@@ -101,13 +104,14 @@ def main(num_workers_torch, log=False, log_period=10, debug=False, cpu_only=Fals
             if log:
                 # We create one summarywriter for each seed in order to overlay the plots
                 print('Creating tensorboard writer...', seed)
-                writer = SummaryWriter(log_dir=f"./runs/seed{seed}")
+                writer = SummaryWriter(log_dir=f"./runs/seed{seed}/{MODEL_PATH}")
 
             for e in tqdm(range(NUM_EPOCHS_POOLED)):
                 if log:
                     # At each epoch we look at the histograms of all the network's parameters
                     for name, p in m.named_parameters():
-                        writer.add_histogram(f"client_0/{name}", p, e)
+                        writer.add_histogram(
+                            f"client_{TRAINING_CENTER_STRING}/{name}", p, e)
 
                 for s, (X, y) in enumerate(training_dl):
                     # traditional training loop with optional GPU transfer
@@ -154,8 +158,8 @@ def main(num_workers_torch, log=False, log_period=10, debug=False, cpu_only=Fals
         for param_tensor in m.state_dict():
             print(param_tensor, "\t", m.state_dict()[param_tensor].size())
 
-        current_results_dict = evaluate_model_on_tests(
-            m, [test_dl([i]) for i in range(NUM_CLIENTS)], metric, use_gpu=use_gpu
+        current_results_dict, y_true_dict, y_pred_dict = evaluate_model_on_tests(
+            m, [test_dl([i]) for i in range(NUM_CLIENTS)], metric_fn, use_gpu=use_gpu, return_pred=True
         )
 
         print('current_results_dict', current_results_dict)
@@ -164,6 +168,7 @@ def main(num_workers_torch, log=False, log_period=10, debug=False, cpu_only=Fals
             results.append(current_results_dict[f"client_test_{i}"])
 
     results = np.array(results)
+
     print('results', results)
 
     if log:
@@ -222,3 +227,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
     main(args.num_workers_torch, args.log, args.log_period,
          args.debug, args.cpu_only, args.centers, args.pool)
+
+    # df = pd.DataFrame(columns=['current_results', 'y_true', 'y_pred'])
+    # df.loc[0] = [current_results_dict, y_true_dict, y_pred_dict]
+    # df.to_csv('results.csv')
