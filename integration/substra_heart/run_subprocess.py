@@ -18,19 +18,20 @@ from substrafl.evaluation_strategy import EvaluationStrategy
 from substrafl.nodes import TestDataNode
 from substrafl.nodes import AggregationNode
 from substrafl.nodes import TrainDataNode
-from substrafl.algorithms.pytorch import TorchFedAvgAlgo
+from substrafl.algorithms.pytorch import TorchFedAvgAlgo, TorchNewtonRaphsonAlgo, TorchScaffoldAlgo, TorchSingleOrganizationAlgo
 from substrafl.index_generator import NpIndexGenerator
 from substrafl.remote.register import add_metric
 from substrafl.dependency import Dependency
 from flamby.datasets import fed_heart_disease
 
+
 questions = [
     inquirer.List('model_type',
                   message="What model would you like to use?",
-                  choices=['MLP', 'Linear']),
+                  choices=fed_heart_disease.models),
     inquirer.List('optimiser',
                   message="What optimiser would you like to use?",
-                  choices=['Adam', 'SGD']),
+                  choices=fed_heart_disease.optimizers),
     inquirer.List('federated_stat',
                   message="What federated strategy would you like to use?",
                   choices=strategies)
@@ -222,12 +223,16 @@ SEED = 42
 
 model = fed_heart_disease.Baseline()
 criterion = fed_heart_disease.BaselineLoss()
-optimizer = fed_heart_disease.AdamOptimizer(model.parameters(), lr=fed_heart_disease.LR)
 # model = torch.load('models/model_pooled.pt', map_location=device)
 
 if answer["model_type"] == "MLP":
+    print("Using MLP model")
     model = fed_heart_disease.MLP()
+
+optimizer = fed_heart_disease.AdamOptimizer(model.parameters(), lr=fed_heart_disease.LR)
+
 if answer["optimiser"] == "SGD":
+    print("Using SGD optimiser")
     optimizer = fed_heart_disease.SGDOptimizer(
         model.parameters(), lr=fed_heart_disease.LR)
 
@@ -275,6 +280,31 @@ class TorchDataset(fed_heart_disease.FedHeartDisease):
         config = datasamples
         super().__init__(**config)
 
+
+# %%
+# Federated Learning strategies
+# =============================
+#
+# A FL strategy specifies how to train a model on distributed data.
+# The most well known strategy is the Federated Averaging strategy: train locally a model on every organization,
+# then aggregate the weight updates from every organization, and then apply locally at each organization the averaged
+# updates.
+strategy = FedAvg()
+TORCH_ALGO = TorchFedAvgAlgo
+
+if answer["federated_stat"] == "SingleOrganization":
+    print("Using SingleOrganization")
+    strategy = SingleOrganization()
+    TORCH_ALGO = TorchSingleOrganizationAlgo
+elif answer["federated_stat"] == "Scaffold":
+    print("Using Scaffold")
+    strategy = Scaffold()
+    TORCH_ALGO = TorchScaffoldAlgo
+elif answer["federated_stat"] == "NewtonRaphson":
+    print("Using NewtonRaphson")
+    strategy = NewtonRaphson(damping_factor=0.1)
+    TORCH_ALGO = TorchNewtonRaphsonAlgo
+
 # %%
 # SubstraFL algo definition
 # ==========================
@@ -286,7 +316,7 @@ class TorchDataset(fed_heart_disease.FedHeartDisease):
 # Indeed, this `TorchDataset` will be instantiated directly on the data provider organization.
 
 
-class MyAlgo(TorchFedAvgAlgo):
+class MyAlgo(TORCH_ALGO):
     def __init__(self):
         super().__init__(
             model=model,
@@ -318,26 +348,6 @@ class MyAlgo(TorchFedAvgAlgo):
 
 
 # %%
-# Federated Learning strategies
-# =============================
-#
-# A FL strategy specifies how to train a model on distributed data.
-# The most well known strategy is the Federated Averaging strategy: train locally a model on every organization,
-# then aggregate the weight updates from every organization, and then apply locally at each organization the averaged
-# updates.
-strategy = FedAvg()
-
-if answer["federated_stat"] == "Strategy":
-    strategy = Strategy()
-elif answer["federated_stat"] == "SingleOrganization":
-    strategy = SingleOrganization()
-elif answer["federated_stat"] == "Scaffold":
-    strategy = Scaffold()
-elif answer["federated_stat"] == "NewtonRaphson":
-    strategy = NewtonRaphson()
-
-
-# %%
 # Where to train where to aggregate
 # =================================
 #
@@ -346,7 +356,6 @@ elif answer["federated_stat"] == "NewtonRaphson":
 #
 # The :ref:`substrafl_doc/api/nodes:AggregationNode` specifies the organization on which the aggregation operation
 # will be computed.
-
 aggregation_node = AggregationNode(ALGO_ORG_ID)
 
 train_data_nodes = list()

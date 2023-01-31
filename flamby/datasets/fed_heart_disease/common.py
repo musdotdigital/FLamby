@@ -14,3 +14,5 @@ FedClass = FedHeartDisease
 
 def get_nb_max_rounds(num_updates, batch_size=BATCH_SIZE):
     return (486 // NUM_CLIENTS // batch_size) * NUM_EPOCHS_POOLED // num_updates
+
+__all__ = ['Adam', 'SDG']
