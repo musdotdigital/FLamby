@@ -18,7 +18,7 @@ from substrafl.evaluation_strategy import EvaluationStrategy
 from substrafl.nodes import TestDataNode
 from substrafl.nodes import AggregationNode
 from substrafl.nodes import TrainDataNode
-from substrafl.algorithms.pytorch import TorchFedAvgAlgo, TorchNewtonRaphsonAlgo, TorchScaffoldAlgo, TorchSingleOrganizationAlgo
+from substrafl.algorithms.pytorch import TorchFedAvgAlgo, TorchScaffoldAlgo, TorchSingleOrganizationAlgo
 from substrafl.index_generator import NpIndexGenerator
 from substrafl.remote.register import add_metric
 from substrafl.dependency import Dependency
@@ -39,7 +39,7 @@ questions = [
 
 
 N_CLIENTS = fed_heart_disease.NUM_CLIENTS
-MODE = substra.BackendType.LOCAL_SUBPROCESS
+MODE = substra.BackendType.LOCAL_DOCKER
 
 # Create the substra clients
 clients = [Client(backend_type=MODE) for _ in range(N_CLIENTS)]
