@@ -40,50 +40,11 @@ class CustomEggInfoCommand(egg_info):
 
 
 # datasets has a dependency that requires options
-camelyon16 = [
-    "google-api-python-client",
-    "google-auth-httplib2",
-    "google-auth-oauthlib",
-    "histolab",
-    "openslide-python",
-    "requests",
-]
-heart = ["wget"]
-isic2019 = ["albumentations", "efficientnet-pytorch", "requests", "wget"]
-ixi = ["monai", "nibabel"]
-kits19 = ["batchgenerators", "nibabel==3.2.2", "nnunet==1.7.0"]
-lidc = [
-    "dask",
-    "dicom-numpy",
-    "networkx",
-    "nibabel==3.2.2",
-    "pydicom",
-    "scipy",
-    "scikit-image",
-]
-tcga = ["lifelines"]
-docs = [
-    "albumentations",
-    "batchgenerators",
-    "dask",
-    "dicom-numpy",
-    "efficientnet-pytorch",
-    "google-api-python-client",
-    "google-auth-httplib2",
-    "google-auth-oauthlib",
-    "histolab",
-    "lifelines",
-    "matplotlib",
-    "monai",
-    "nnunet==1.7.0",
-    "pydicom",
-    "requests",
-    "scipy",
-    "sphinx==4.5.0",
-    "sphinx-rtd-theme==1.0.0",
-]
-tests = ["albumentations", "pytest"]
-all_extra = camelyon16 + heart + isic2019 + ixi + kits19 + lidc + tcga + docs + tests
+heart = ["wget",
+         "matplotlib==3.5.2",
+         "inquirer"]
+
+all_extra = heart
 
 with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
@@ -118,16 +79,8 @@ setup(
         "substrafl==0.32.0"
     ],
     extras_require={
-        "cam16": camelyon16,
         "heart": heart,
-        "isic2019": isic2019,
-        "ixi": ixi,
-        "kits19": kits19,
-        "lidc": lidc,
-        "tcga": tcga,
         "all_extra": all_extra,
-        "docs": docs,
-        "tests": tests,
     },
     description="FLamby: A cross-silo Federated Learning Benchmark.",
     long_description=long_description,
