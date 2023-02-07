@@ -39,13 +39,6 @@ class CustomEggInfoCommand(egg_info):
         assert command == 0
 
 
-# datasets has a dependency that requires options
-heart = ["wget",
-         "matplotlib==3.5.2",
-         "inquirer"]
-
-all_extra = heart
-
 with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
@@ -76,12 +69,11 @@ setup(
         "tqdm",
         "umap-learn",
         "opacus",
-        "substrafl==0.32.0"
+        "substrafl==0.32.0",
+        "wget",
+        "matplotlib==3.5.2",
+        "inquirer"
     ],
-    extras_require={
-        "heart": heart,
-        "all_extra": all_extra,
-    },
     description="FLamby: A cross-silo Federated Learning Benchmark.",
     long_description=long_description,
     author="FL-datasets team",
